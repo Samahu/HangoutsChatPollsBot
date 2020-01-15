@@ -13,10 +13,10 @@ Additioanlly in the code make sure to set the BOT_NAME variable to match the nam
 
 # Usage
 After you add the bot to a room or a space you may start a new poll by posting a question with choices as follows:  
-_When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM._  
+**When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM.**  
 The bot would then ask you few questions about the nature of the poll.  
-*Note 1:* A poll needs to have at least two options!  
-*Note 2:* During poll formation if any of you replies contain the '?' symbol then this would start a new poll!  
+_Note 1:_ A poll needs to have at least two options!  
+_Note 2:_ During poll formation if any of you replies contain the '?' symbol then this would start a new poll!  
 
 Once you finish answering the follow up questions the bot will post the poll into the room and starts counting the votes from different participants as shown below:  
 ![](card.png)
