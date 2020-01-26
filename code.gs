@@ -339,11 +339,6 @@ function onAddToSpace(event) {
     message = "Thank you for adding me to " + event.space.displayName;
   }
 
-  if (event.message) {
-    // Bot added through @mention.
-    message = message + " and you said: \"" + event.message.text + "\"";
-  }
-
   return { "text": message };
 }
 
