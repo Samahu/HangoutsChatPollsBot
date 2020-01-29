@@ -20,4 +20,4 @@ _Note 1:_ A poll needs to have at least two options!
 _Note 2:_ During poll formation if any of you replies contain the '?' symbol then this would start a new poll!  
 
 Once you finish answering the follow up questions the bot will post the poll into the room and starts counting the votes from different participants as shown below:  
-![](card.png)
+![](./misc/card.png)

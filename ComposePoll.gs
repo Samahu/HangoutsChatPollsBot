@@ -1,215 +1,134 @@
-// log proxy
-var log = (function () {
-  return {
-    info: function (msg) { console.info(msg); },
-    error: function (msg) { console.error(msg); }
-  }
-})();
-
-var POLL_FORMATION_STATUS = { READY: 0, PARSE_POLL_TYPE: 1, PARSE_POLL_ANONYMOUS_PREF: 2, POST_POLL: 3 };
-
-var Dialog = function (poll_data) {
+var PollComposer = function() {
   
-  var current_state_from_poll_formation_status = function(poll_formation_status) {
-
-    switch (poll_formation_status) {
-      case POLL_FORMATION_STATUS.PARSE_POLL_TYPE:
-        return new State_ParsePollType(this);
-        
-      case POLL_FORMATION_STATUS.PARSE_POLL_ANONYMOUS_PREF:
-        return new State_ParseAnonymousPref(this);
-      
-      case POLL_FORMATION_STATUS.READY:
-      default:
-        return new State_Ready(this);
+  this.compose_vote_button = function(poll, index) {
+    
+    var choice = poll.choices[index];
+    
+    return {
+        textButton: {
+          text: choice,
+          onClick: {
+            action: {
+              actionMethodName: "update-vote",
+              parameters: [
+                { key: "poll", value: JSON.stringify(poll) },
+                { key: "index", value: index.toString() }
+              ]
+            }
+          }
+        }
+      }
+  }
+  
+  this.compose_vote_section = function(poll, index, total_votes) {
+    
+    var response = poll.responses[index];
+    
+    var widgets = [{ buttons: [this.compose_vote_button(poll, index)]}];
+    
+    var vote_percent = total_votes > 0 ? 100 * response.voters.length / total_votes : 0;
+    
+    widgets.push({ textParagraph: { text: Utilities.formatString("%.2f\% / (%d)", vote_percent, response.voters.length) }});
+    
+    if (!poll.options.anonymous)
+    {
+      var voters_list = response.voters.join(", ");
+      widgets.push({ textParagraph: { text: Utilities.formatString("<i><font color='#808080'>%s</font></i>", voters_list) }});
     }
     
-  };
+    return { widgets: widgets };
+  }
 
-  this.poll_data = poll_data;
-  var current_state = current_state_from_poll_formation_status(poll_data.poll_formation_status);
-  
-  this.change = function (state) {
-    current_state = state;
-    return current_state.start();
-  };
- 
-  // process response
-  this.process = function(owner, response) {
+  this.compose_footer_section = function(total_votes) {
+    return { widgets: [{ textParagraph: { text: Utilities.formatString("<b>Total votes: %d<b>", total_votes) }}] }
+  }
+
+  this.compose_message_body = function(poll, total_votes, action_response_type) {
+
+    sections = [];
     
-    log.info("process invoked!");
+    var poll_options = Utilities.formatString("[Poll Type: %s, Anonymous: %s]",
+                                              poll.options.single_choice ? "Single Choice" : "Multi Choice",
+                                              poll.options.anonymous ? "Yes" : "No");
     
-    switch (response.toLowerCase()) {
-        // Top level commands
-      case "help":
-      case "usage":
-        return { message : this.usage_message(), poll_data: this.poll_data };  // poll_data stays same.
-        
-      case "cancel": // TODO: Is it better to have this at top level?
-        return { message : this.poll_is_canceled_message(), poll_data: null };  // clear poll_data
-      
-      default:
-        return { message: current_state.process(owner, response), poll_data: this.poll_data };
+    sections.push({ widgets: [{ textParagraph: { text: poll_options }}] });
+    
+    for (var i = 0; i < poll.responses.length; ++i) {
+      sections.push(this.compose_vote_section(poll, i, total_votes));
     }
-  };
-  
-  /* Some Helper Methods */
-  this.usage_message = function() {
-    return { 'text': "You may start a new poll by posting a question with choices as follows:" +
-      "\n_When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM_." +
-      "\nThe bot would then ask you few questions about the nature of the poll." +
-      "\n*Note 1:* A poll needs to have at least two options!" +
-      "\n*Note 2:* During poll formation if any of you replies contain the '?' symbol then this would start a new poll!" };
-  }
-  
-  this.response_is_ill_formed_or_unexpected_message = function() {
-    return { "text": "Response is ill-formed or unexpected! Type 'help' or 'usage' to show how you may interact with this bot." };
-  }
-  
-  this.poll_is_canceled_message = function() {
-    return { "text": "Poll is canceled!" };
-  }
-}
-
-// STATE Ready ---------------------
-var State_Ready = function (dialog) {
-  this.dialog = dialog;
-  
-  this.start = function (response) {
-    log.info("State_Ready is selected");
-    dialog.poll_data.poll_formation_status = POLL_FORMATION_STATUS.READY;
-    return {};
-  }
-  
-  this.process = function (owner, response) {
     
-    var question_mark_index = response.indexOf('?');
+    sections.push(this.compose_footer_section(total_votes));
     
-    if (question_mark_index < 0)
-      return dialog.response_is_ill_formed_or_unexpected_message();
+    var poll_created_by = Utilities.formatString("Poll created by %s.", poll.poller);
     
-    var question = response.substring(0, question_mark_index);
-    var reminder = response.substring(question_mark_index + 1);
-    var choices = reminder.split(",");
-    
-    if (choices.length < 2)
-      return dialog.response_is_ill_formed_or_unexpected_message();
-    
-    dialog.poll_data = {
-      poll_formation_status: dialog.poll_data.poll_formation_status,  // Unchanged!
-      poller: owner,
-      options: {
-        single_choice: true,
-        anonymous: true
-      },
-      question: question,
-      choices: choices
+    return {
+      actionResponse: { type: action_response_type },
+      cards: [{
+        header: { title: poll.question, subtitle : poll_created_by, imageUrl : DEFAULT_IMAGE_URL },
+        sections: sections
+      }]
     };
-    
-    log.info("State_Ready -> State_ParsePollType");  // TODO: Refactor this part! .. Should be moved into the change() method.
-    return dialog.change(new State_ParsePollType(dialog));
   }
-};
 
-// STATE ParsePollType ---------------------
-var State_ParsePollType = function (dialog) {
-  this.dialog = dialog;
-  
-  this.request_poll_type_message = function(prefix) {
-    
-    var message = "What kind of poll do you want to have? single or multi choice?";
-    
-    if (prefix)
-      message = prefix + message;
-    
-    return { "text": message };
-  }
-  
-  this.start = function () {
-    log.info("State_ParsePollType is selected");
-    dialog.poll_data.poll_formation_status = POLL_FORMATION_STATUS.PARSE_POLL_TYPE;
-    return request_poll_type_message();
-  }
-  
-  this.process = function (owner, response) {
-    
-    var single_index = response.indexOf("single");
-    var default_index = response.indexOf("default");
-    
-    if (single_index > -1 || default_index > -1) {
-      dialog.poll_data.options.single_choice = true;
-      return dialog.change(new State_ParseAnonymousPref(dialog));
-    }
-    
-    var multi_index = message.indexOf("multi");
-    
-    if (multi_index > -1) {
-      dialog.poll_data.options.single_choice = false;
-      return dialog.change(new State_ParseAnonymousPref(dialog)); // TODO log.info("State_ParsePollType -> State_ParseAnonymousPref");
-    }
-    
-    return dialog.response_is_ill_formed_or_unexpected_message(); // We didn't get any of the expected responses.
-  }
-  
-};
+  this.compose = function(poll_details) {
 
-// STATE ParseAnonymousPref ---------------------
-var State_ParseAnonymousPref = function (dialog) {
-  this.dialog = dialog;
-  
-  function request_anonymous_pref_message(prefix) {
+    var poll = poll_details;
     
-    var message = "Should the poll be anonymous?";
-    
-    if (prefix)
-      message = prefix + message;
-    
-    return { "text": message };
-  }
-  
-  this.start = function () {
-    log.info("State_ParseAnonymousPref is selected");
-    dialog.poll_data.poll_formation_status = POLL_FORMATION_STATUS.PARSE_ANONYMOUS_PREF;
-    return this.request_anonymous_pref_message();
-  }
-  
-  this.process = function (owner, response) {
-    
-    var yes_index = response.indexOf("yes");
-    var default_index = response.indexOf("default");
-    var anonymous_index = response.indexOf("anonymous");
-    
-    
-    if (yes_index > -1 || default_index > -1 || anonymous_index > -1) {
-      dialog.poll_data.options.anonymous = true;
-      return dialog.change(new State_PostPoll(dialog));
+    // Add a placeholder to record votes
+    poll.responses = [];
+    for each (var choice in poll.choices) {
+      poll.responses.push({ voters: [] });
     }
     
-    var no_index = response.indexOf("no");
-    var identified_index = response.indexOf("identified");
-    var known_index = response.indexOf("known");
-    
-    if (no_index > -1 || identified_index > -1 || known_index > -1) {
-      dialog.poll_data.options.anonymous = false;
-      return dialog.change(new State_PostPoll(dialog));
-    }
-    
-    return dialog.request_anonymous_pref_message("Sorry, I need to know your exact response .. ");
+    return this.compose_message_body(poll, 0, "NEW_MESSAGE");
   }
-};
+  
+  this.update_poll_multi_choice = function(voter, poll, index) {
+    
+    var response = poll.responses[index];
+    var voter_index = response.voters.indexOf(voter);
+    if (voter_index > -1)
+      response.voters.splice(voter_index, 1);  // Already voted so remove
+    else
+      response.voters.push(voter);  // Didn't use this response yet
+    
+  }
 
-// STATE PostPoll ---------------------
-var State_PostPoll = function (dialog) {
-  this.dialog = dialog;
-  
-  this.start = function() {
-    log.info("State_PostPoll is selected");
-    dialog.poll_data.poll_formation_status = POLL_FORMATION_STATUS.POST_POLL;
-    return PollBuilder().postPoll();
+  this.update_poll_single_choice = function(voter, poll, index) {
+
+    // if the user clicked on the same choice then remove.
+    var voter_response = poll.responses[index];
+    var voter_index = voter_response.voters.indexOf(voter);
+    if (voter_index > -1) {
+      voter_response.voters.splice(voter_index, 1);
+      return;
+    }
+    
+    // search all other responses and see if the voter has already voted .. if so remove and then add the new selection
+    for each (var response in poll.responses) {
+      
+      if (response == voter_response)
+        continue;
+      
+      var voter_index = response.voters.indexOf(voter);
+      if (voter_index > -1) {
+        response.voters.splice(voter_index, 1);
+        break;
+      }
+      
+    }
+    
+    voter_response.voters.push(voter);  // Set the new selection
   }
-  
-  this.process = function (owner, response) {
-    // TODO: this wouldn't be invoked typically .. I presume.
-    dialog.poll_data = null;
+
+  this.update = function(voter, poll, index) {
+
+    var poll_update_method = poll.options.single_choice ? this.update_poll_single_choice : this.update_poll_multi_choice;
+    
+    poll_update_method(voter, poll, index);
+    
+    var total_votes = poll.responses.reduce(function(total, response) { return total + response.voters.length; }, 0);
+    
+    return this.compose_message_body(poll, total_votes, "UPDATE_MESSAGE");
   }
 }
