@@ -138,7 +138,7 @@ var PollComposer = function() {
 
   this.update = function(voter, poll, index) {
     
-    if (this.is_poll_still_active(poll))
+    if (!this.is_poll_still_active(poll))
       return { 'text': "this poll has expired!" };
 
     var poll_update_method = poll.options.single_choice ? this.update_poll_single_choice : this.update_poll_multi_choice;
