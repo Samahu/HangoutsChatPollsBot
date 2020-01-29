@@ -1,4 +1,4 @@
-var POLL_FORMATION_STATUS = { READY: 0, PARSE_POLL_TYPE: 1, PARSE_POLL_ANONYMOUS_PREF: 2, POST_POLL: 3 };
+var POLL_FORMATION_STATUS = { READY: 0, PARSE_POLL_TYPE: 1, PARSE_POLL_ANONYMITY_PREF: 2, PARSE_POLL_EXPIRATION_TIME: 3, POST_POLL: 100 };
 
 var Dialog = function (poll_details) {
   
@@ -18,8 +18,11 @@ var Dialog = function (poll_details) {
       case POLL_FORMATION_STATUS.PARSE_POLL_TYPE:
         return new State_ParsePollType(this);
         
-      case POLL_FORMATION_STATUS.PARSE_POLL_ANONYMOUS_PREF:
+      case POLL_FORMATION_STATUS.PARSE_POLL_ANONYMITY_PREF:
         return new State_ParseAnonymousPref(this);
+        
+      case POLL_FORMATION_STATUS.PARSE_POLL_EXPIRATION_TIME:
+        return new State_ParseExpirationTime(this);
       
       case POLL_FORMATION_STATUS.READY:
       default:
@@ -187,7 +190,7 @@ var State_ParseAnonymousPref = function (dialog) {
   }
   
   this.start = function () {
-    dialog.get_poll_details().poll_formation_status = POLL_FORMATION_STATUS.PARSE_POLL_ANONYMOUS_PREF;
+    dialog.get_poll_details().poll_formation_status = POLL_FORMATION_STATUS.PARSE_POLL_ANONYMITY_PREF;
     return this.request_anonymous_pref_message();
   }
   
@@ -201,7 +204,7 @@ var State_ParseAnonymousPref = function (dialog) {
     
     if (yes_index > -1 || default_index > -1 || anonymous_index > -1) {
       dialog.get_poll_details().options.anonymous = true;
-      return dialog.change(new State_PostPoll(dialog));
+      return dialog.change(new State_ParseExpirationTime(dialog));
     }
     
     var no_index = response.indexOf("no");
@@ -210,10 +213,67 @@ var State_ParseAnonymousPref = function (dialog) {
     
     if (no_index > -1 || identified_index > -1 || known_index > -1) {
       dialog.get_poll_details().options.anonymous = false;
-      return dialog.change(new State_PostPoll(dialog));
+      return dialog.change(new State_ParseExpirationTime(dialog));
     }
     
     return this.request_anonymous_pref_message("Sorry, I need to know your exact response .. ");
+  }
+};
+
+// State_ParseExpirationTime ---------------------
+var State_ParseExpirationTime = function (dialog) {
+  
+  var dialog = dialog;
+  this.name = "State_ParseExpirationTime";
+  
+  this.request_how_long_to_keep_active_message = function(prefix) {
+    
+    var message = "How long to keep this poll active? (You may respond as 30m, 3h, 2d, 1w, .. or say never. When no unit is specified hours are assumed)";
+    
+    if (prefix)
+      message = prefix + message;
+
+    return { text: message };
+  }
+  
+  this.start = function () {
+    dialog.get_poll_details().poll_formation_status = POLL_FORMATION_STATUS.PARSE_POLL_EXPIRATION_TIME;
+    return this.request_how_long_to_keep_active_message();
+  }
+  
+  this.normialize_time_unit_to_hours = function(period, unit) {
+    switch (unit) {
+      case 'm': return period * 60;
+      case 'h': return period * 60 * 60;
+      case 'd': return period * 60 * 60 * 24;
+      case 'w': return period * 60 * 60 * 24 * 7;
+      default:  return period; // includes case 's' seconds
+    }
+  }
+  
+  this.process = function(owner, response) {
+    
+    response = response.toLowerCase();
+    
+    var never_index = response.indexOf("never");
+    
+    if (never_index > -1) {
+      dialog.get_poll_details().options.expiration_time_in_seconds = 0.0;
+      return dialog.change(new State_PostPoll(dialog));
+    }
+    
+    var period_unit_regex = /(\d+)\s?([smhdw]?)/;
+    var groups = response.match(period_unit_regex);
+    
+    if (groups && groups.length >= 1) {
+      log.info(groups);
+      var period = parseInt(groups[1]);
+      var unit = groups.length  > 2 ? groups[2] : 'h';
+      dialog.get_poll_details().options.expiration_time_in_seconds = this.normialize_time_unit_to_hours(period, unit);
+      return dialog.change(new State_PostPoll(dialog));
+    }
+    
+    return this.request_how_long_to_keep_active_message("Sorry, I need to know your exact response .. ");
   }
 };
 

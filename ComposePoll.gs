@@ -80,6 +80,8 @@ var PollComposer = function() {
       poll.responses.push({ voters: [] });
     }
     
+    poll.initiated_on = new Date();
+    
     return this.compose_message_body(poll, 0, "NEW_MESSAGE");
   }
   
@@ -120,8 +122,24 @@ var PollComposer = function() {
     
     voter_response.voters.push(voter);  // Set the new selection
   }
+  
+  this.is_poll_still_active = function(poll) {
+    
+    if (poll.options.expiration_time_in_seconds == 0.0)
+      return true;
+    
+    var current_time = new Date();
+    var initiated_on = new Date(poll.initiated_on);
+    var date_diff_in_seconds = 0.001 * (current_time - initiated_on);
+    
+    return date_diff_in_seconds <= poll.options.expiration_time_in_seconds;
+    
+  }
 
   this.update = function(voter, poll, index) {
+    
+    if (this.is_poll_still_active(poll))
+      return { 'text': "this poll has expired!" };
 
     var poll_update_method = poll.options.single_choice ? this.update_poll_single_choice : this.update_poll_multi_choice;
     
