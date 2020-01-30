@@ -63,8 +63,8 @@ function onAddToSpace(event) {
     message = "Thank you for adding me to " + event.space.displayName;
   }
   
-  message += "\n" + usage_string();
-
+  message += "\nType 'help' to list usage information for you";
+  
   return { "text": message };
 }
 
@@ -75,4 +75,5 @@ function onAddToSpace(event) {
  */
 function onRemoveFromSpace(event) {
   log.info("Bot removed from ", event.space.name);
+  return { 'text': 'Goodbye!' }
 }

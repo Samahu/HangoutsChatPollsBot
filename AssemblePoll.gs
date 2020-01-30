@@ -165,7 +165,7 @@ var State_ParsePollType = function (dialog) {
     
     if (multi_index > -1) {
       dialog.get_poll_details().options.single_choice = false;
-      return dialog.change(new State_ParseAnonymousPref(dialog)); // TODO log.info("State_ParsePollType -> State_ParseAnonymousPref");
+      return dialog.change(new State_ParseAnonymousPref(dialog));
     }
     
     return this.request_poll_type_message("Sorry, I need to know your exact response .. "); // We didn't get any of the expected responses.
@@ -228,7 +228,9 @@ var State_ParseExpirationTime = function (dialog) {
   
   this.request_how_long_to_keep_active_message = function(prefix) {
     
-    var message = "How long to keep this poll active? (You may respond as 30m, 3h, 2d, 1w, .. or say never. When no unit is specified hours are assumed)";
+    var message = "How long to keep this poll active?" +
+      " You may respond using a number followed by a time unit (for example: 10 seconds, 5 h, 2days, 1 week, ..). When no time unit is specified hours are assumed." +
+      " You may respond with 'never' or 0 to indicate that this poll doesn't expire";
     
     if (prefix)
       message = prefix + message;
@@ -266,9 +268,8 @@ var State_ParseExpirationTime = function (dialog) {
     var groups = response.match(period_unit_regex);
     
     if (groups && groups.length >= 1) {
-      log.info(groups);
       var period = parseInt(groups[1]);
-      var unit = groups.length  > 2 ? groups[2] : 'h';
+      var unit = groups[2] ? groups[2] : 'h';
       dialog.get_poll_details().options.expiration_time_in_seconds = this.normialize_time_unit_to_hours(period, unit);
       return dialog.change(new State_PostPoll(dialog));
     }
