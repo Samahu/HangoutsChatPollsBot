@@ -6,7 +6,8 @@ function PollDetails() {
       poller: "",
       options: {
         single_choice: true,
-        anonymous: true
+        anonymous: true,
+        expiration_time_in_seconds: 0.0
       },
       question: "",
       choices: []

@@ -1,12 +1,13 @@
 var PollComposer = function() {
   
-  this.compose_vote_button = function(poll, index) {
+  this.compose_vote_button = function(poll, index, expired) {
     
     var choice = poll.choices[index];
     
     return {
         textButton: {
           text: choice,
+          disabled: expired,
           onClick: {
             action: {
               actionMethodName: "update-vote",
@@ -20,11 +21,11 @@ var PollComposer = function() {
       }
   }
   
-  this.compose_vote_section = function(poll, index, total_votes) {
+  this.compose_vote_section = function(poll, index, total_votes, expired) {
     
     var response = poll.responses[index];
     
-    var widgets = [{ buttons: [this.compose_vote_button(poll, index)]}];
+    var widgets = [{ buttons: [this.compose_vote_button(poll, index, expired)]}];
     
     var vote_percent = total_votes > 0 ? 100 * response.voters.length / total_votes : 0;
     
@@ -39,25 +40,42 @@ var PollComposer = function() {
     return { widgets: widgets };
   }
 
-  this.compose_footer_section = function(total_votes) {
-    return { widgets: [{ textParagraph: { text: Utilities.formatString("<b>Total votes: %d<b>", total_votes) }}] }
+  this.compose_footer_section = function(total_votes, expired) {
+    var widgets = [{ textParagraph: { text: Utilities.formatString("<b>Total votes: %d<b>", total_votes) }}];
+    
+    if (expired)
+      widgets.push({ textParagraph: { text: Utilities.formatString("<font color='#FF0000'>Poll has expired!</font>", total_votes) }});
+    
+    return { widgets: widgets };
   }
 
-  this.compose_message_body = function(poll, total_votes, action_response_type) {
+  this.compose_message_body = function(poll, total_votes, expired, action_response_type) {
 
     sections = [];
     
-    var poll_options = Utilities.formatString("[Poll Type: %s, Anonymous: %s]",
+    var poll_options = Utilities.formatString("[Type: %s, Anonymous: %s]",
                                               poll.options.single_choice ? "Single Choice" : "Multi Choice",
                                               poll.options.anonymous ? "Yes" : "No");
     
     sections.push({ widgets: [{ textParagraph: { text: poll_options }}] });
     
+    var initiated_on = new Date(poll.initiated_on);
+    var expires_on = new Date(initiated_on.getTime() + 1000 * poll.options.expiration_time_in_seconds);
+    var timeZone = Session.getScriptTimeZone(); //AdsApp.currentAccount().getTimeZone();
+    initiated_on = Utilities.formatDate(initiated_on, "GMT", "yyyy-MM-dd HH:mm:ss z");
+    expires_on = Utilities.formatDate(expires_on, "GMT", "yyyy-MM-dd HH:mm:ss z");
+    
+    var poll_expiration = Utilities.formatString("[Initiated On: %s, Expires On: %s]",
+                                              initiated_on,
+                                              poll.options.expiration_time_in_seconds == 0.0 ? "Unbound" : expires_on);
+    
+    sections.push({ widgets: [{ textParagraph: { text: poll_expiration }}] });
+    
     for (var i = 0; i < poll.responses.length; ++i) {
-      sections.push(this.compose_vote_section(poll, i, total_votes));
+      sections.push(this.compose_vote_section(poll, i, total_votes, expired));
     }
     
-    sections.push(this.compose_footer_section(total_votes));
+    sections.push(this.compose_footer_section(total_votes, expired));
     
     var poll_created_by = Utilities.formatString("Poll created by %s.", poll.poller);
     
@@ -80,7 +98,9 @@ var PollComposer = function() {
       poll.responses.push({ voters: [] });
     }
     
-    return this.compose_message_body(poll, 0, "NEW_MESSAGE");
+    poll.initiated_on = new Date();
+    
+    return this.compose_message_body(poll, 0, false, "NEW_MESSAGE");
   }
   
   this.update_poll_multi_choice = function(voter, poll, index) {
@@ -120,15 +140,30 @@ var PollComposer = function() {
     
     voter_response.voters.push(voter);  // Set the new selection
   }
+  
+  this.is_poll_still_active = function(poll) {
+    
+    if (poll.options.expiration_time_in_seconds == 0.0)
+      return true;
+    
+    var current_time = new Date();
+    var initiated_on = new Date(poll.initiated_on);
+    var date_diff_in_milliseconds = current_time - initiated_on;
+    
+    return date_diff_in_milliseconds <= 1000 * poll.options.expiration_time_in_seconds;
+  }
 
   this.update = function(voter, poll, index) {
 
-    var poll_update_method = poll.options.single_choice ? this.update_poll_single_choice : this.update_poll_multi_choice;
+    var poll_active = this.is_poll_still_active(poll);
     
-    poll_update_method(voter, poll, index);
+    if (poll_active) {
+      var poll_update_method = poll.options.single_choice ? this.update_poll_single_choice : this.update_poll_multi_choice;
+      poll_update_method(voter, poll, index);
+    }
     
     var total_votes = poll.responses.reduce(function(total, response) { return total + response.voters.length; }, 0);
     
-    return this.compose_message_body(poll, total_votes, "UPDATE_MESSAGE");
+    return this.compose_message_body(poll, total_votes, !poll_active, "UPDATE_MESSAGE");
   }
 }
