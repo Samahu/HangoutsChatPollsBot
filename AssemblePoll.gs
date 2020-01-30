@@ -78,8 +78,7 @@ var Dialog = function (poll_details) {
     return { text: "You may start a new poll by posting a question with choices as follows:" +
       "\n_When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM_." +
       "\nThe bot would then ask you few questions about the nature of the poll." +
-      "\n*Note 1:* A poll needs to have at least two options!" +
-      "\n*Note 2:* During poll formation if any of you replies contain the '?' symbol then this would start a new poll!" };
+      "\n*Note:* A poll needs to have at least two options!" };
   }
   
   this.response_is_ill_formed_or_unexpected_message = function() {
