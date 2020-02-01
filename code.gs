@@ -13,6 +13,7 @@ function onMessage(event) {
   var message = event.message.text;
   if (0 == message.indexOf(BOT_NAME))
     message = message.substring(BOT_NAME.length);
+  message = message.trim();
   
   var poller = event.user.displayName;
   
