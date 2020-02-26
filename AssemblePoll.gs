@@ -1,4 +1,4 @@
-var POLL_FORMATION_STATUS = { READY: 0, PARSE_POLL_TYPE: 1, PARSE_POLL_ANONYMITY_PREF: 2, PARSE_POLL_EXPIRATION_TIME: 3, POST_POLL: 100 };
+const POLL_FORMATION_STATUS = { READY: 0, PARSE_POLL_TYPE: 1, PARSE_POLL_ANONYMITY_PREF: 2, PARSE_POLL_EXPIRATION_TIME: 3, POST_POLL: 100 };
 
 var Dialog = function (poll_details) {
   
@@ -34,7 +34,7 @@ var Dialog = function (poll_details) {
   
   this.change = function (state) {
     
-    var log_message = "Changing state";
+    let log_message = "Changing state";
     if (current_state)
       log_message += " from [" + current_state.name + "]";
     
@@ -51,6 +51,8 @@ var Dialog = function (poll_details) {
  
   // process response from the user according to current state.
   this.process = function(owner, response) {
+    
+    log.info("response is " + response);
 
     switch (response.toLowerCase()) {
         // Top level commands
@@ -58,8 +60,11 @@ var Dialog = function (poll_details) {
       case "usage":
         return this.usage_message();  // poll details is unchanged.
         
+      case "version":
+        return this.version_message();
+        
       case "cancel":
-        var message = "";
+        let message = "";
         if (poll_details.get().poll_formation_status == POLL_FORMATION_STATUS.READY)
           message = this.nothing_to_cancel_message();
         else
@@ -75,11 +80,14 @@ var Dialog = function (poll_details) {
   
   /* predefined messages */
   this.usage_message = function() {
-    return { text: "You may start a new poll by posting a question with choices as follows:" +
-      "\n_When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM_." +
-      "\nThe bot would then ask you few questions about the nature of the poll." +
-      "\n*Note 1:* A poll needs to have at least two options!" +
-      "\n*Note 2:* During poll formation if any of you replies contain the '?' symbol then this would start a new poll!" };
+    return { text: `You may start a new poll by posting a question with choices as follows:
+      _When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM_.
+      The bot would then ask you few questions about the nature of the poll.
+      *Note:* A poll needs to have at least two options!` };
+  }
+  
+  this.version_message = function() {
+    return { text: "version 1.0.1" };
   }
   
   this.response_is_ill_formed_or_unexpected_message = function() {
@@ -108,14 +116,14 @@ var State_Ready = function (dialog) {
   
   this.process = function (owner, response) {
     
-    var question_mark_index = response.indexOf('?');
+    let question_mark_index = response.indexOf('?');
     
     if (question_mark_index < 0)
       return dialog.response_is_ill_formed_or_unexpected_message();
     
-    var question = response.substring(0, question_mark_index);
-    var reminder = response.substring(question_mark_index + 1);
-    var choices = reminder.split(",");
+    let question = response.substring(0, question_mark_index);
+    let reminder = response.substring(question_mark_index + 1);
+    let choices = reminder.split(",");
     
     if (choices.length < 2)
       return dialog.response_is_ill_formed_or_unexpected_message();
@@ -136,11 +144,7 @@ var State_ParsePollType = function (dialog) {
   
   this.request_poll_type_message = function(prefix) {
     
-    var message = "What kind of poll do you want to have? single or multi choice?";
-    
-    if (prefix)
-      message = prefix + message;
-    
+    let message = `${prefix ? prefix : ""}What kind of poll do you want to have? single or multi choice?`;    
     return { text: message };
   }
   
@@ -153,15 +157,15 @@ var State_ParsePollType = function (dialog) {
     
     response = response.toLowerCase();
     
-    var single_index = response.indexOf("single");
-    var default_index = response.indexOf("default");
+    let single_index = response.indexOf("single");
+    let default_index = response.indexOf("default");
     
     if (single_index > -1 || default_index > -1) {
       dialog.get_poll_details().options.single_choice = true;
       return dialog.change(new State_ParseAnonymousPref(dialog));
     }
     
-    var multi_index = response.indexOf("multi");
+    let multi_index = response.indexOf("multi");
     
     if (multi_index > -1) {
       dialog.get_poll_details().options.single_choice = false;
@@ -180,12 +184,7 @@ var State_ParseAnonymousPref = function (dialog) {
   this.name = "State_ParseAnonymousPref";
   
   this.request_anonymous_pref_message = function(prefix) {
-    
-    var message = "Should the poll be anonymous?";
-    
-    if (prefix)
-      message = prefix + message;
-    
+    let message = `${prefix ? prefix : ""}Should the poll be anonymous?`;    
     return { text: message };
   }
   
@@ -198,18 +197,18 @@ var State_ParseAnonymousPref = function (dialog) {
     
     response = response.toLowerCase();
     
-    var yes_index = response.indexOf("yes");
-    var default_index = response.indexOf("default");
-    var anonymous_index = response.indexOf("anonymous");
+    let yes_index = response.indexOf("yes");
+    let default_index = response.indexOf("default");
+    let anonymous_index = response.indexOf("anonymous");
     
     if (yes_index > -1 || default_index > -1 || anonymous_index > -1) {
       dialog.get_poll_details().options.anonymous = true;
       return dialog.change(new State_ParseExpirationTime(dialog));
     }
     
-    var no_index = response.indexOf("no");
-    var identified_index = response.indexOf("identified");
-    var known_index = response.indexOf("known");
+    let no_index = response.indexOf("no");
+    let identified_index = response.indexOf("identified");
+    let known_index = response.indexOf("known");
     
     if (no_index > -1 || identified_index > -1 || known_index > -1) {
       dialog.get_poll_details().options.anonymous = false;
@@ -228,13 +227,7 @@ var State_ParseExpirationTime = function (dialog) {
   
   this.request_how_long_to_keep_active_message = function(prefix) {
     
-    var message = "How long to keep this poll active?" +
-      " You may respond using a number followed by a time unit (for example: 10 seconds, 5 h, 2days, 1 week, ..). When no time unit is specified hours are assumed." +
-      " You may respond with 'never' or 0 to indicate that this poll doesn't expire";
-    
-    if (prefix)
-      message = prefix + message;
-
+    let message = `${prefix ? prefix : ""}How long to keep this poll active? You may respond using a number followed by a time unit (for example: 10 seconds, 5 h, 2days, 1 week, ..). When no time unit is specified hours are assumed. You may respond with 'never' or 0 to indicate that this poll doesn't expire`;
     return { text: message };
   }
   
@@ -257,19 +250,19 @@ var State_ParseExpirationTime = function (dialog) {
     
     response = response.toLowerCase();
     
-    var never_index = response.indexOf("never");
+    let never_index = response.indexOf("never");
     
     if (never_index > -1) {
       dialog.get_poll_details().options.expiration_time_in_seconds = 0.0;
       return dialog.change(new State_PostPoll(dialog));
     }
     
-    var period_unit_regex = /(\d+)\s?([smhdw]?)/;
-    var groups = response.match(period_unit_regex);
+    let period_unit_regex = /(\d+)\s?([smhdw]?)/;
+    let groups = response.match(period_unit_regex);
     
     if (groups && groups.length >= 1) {
-      var period = parseInt(groups[1]);
-      var unit = groups[2] ? groups[2] : 'h';
+      let period = parseInt(groups[1]);
+      let unit = groups[2] ? groups[2] : 'h';
       dialog.get_poll_details().options.expiration_time_in_seconds = this.normialize_time_unit_to_hours(period, unit);
       return dialog.change(new State_PostPoll(dialog));
     }
@@ -286,7 +279,7 @@ var State_PostPoll = function (dialog) {
   
   this.start = function() {
     dialog.get_poll_details().poll_formation_status = POLL_FORMATION_STATUS.POST_POLL;
-    var message = (new PollComposer()).compose(dialog.get_poll_details());
+    let message = (new PollComposer()).compose(dialog.get_poll_details());
     dialog.clear_poll_details();
     return message;
   }

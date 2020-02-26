@@ -24,8 +24,10 @@ function PollDetails() {
   
   this.load = function() {
     // Deserialize any pending poll details from user properties
-    var user_properties = PropertiesService.getUserProperties();
-    var poll_data = user_properties.getProperty('POLL_DATA');
+    let user_properties = PropertiesService.getUserProperties();
+    let poll_data = user_properties.getProperty('POLL_DATA');
+    
+    // log.info(`LOAD: ${poll_data}`);
     
     if (poll_data == null)
       this.init();
@@ -34,12 +36,15 @@ function PollDetails() {
   }
   
   this.save = function() {
-    var user_properties = PropertiesService.getUserProperties();
+    let user_properties = PropertiesService.getUserProperties();
     
     // Serialize poll details (if any) back into user properties
     if (this.poll_data == null)
       user_properties.deleteProperty("POLL_DATA");
-    else
-      user_properties.setProperty("POLL_DATA", JSON.stringify(this.poll_data));
+    else {
+      let serialized_poll_data = JSON.stringify(this.poll_data);
+      // log.info(`SAVE: ${serialized_poll_data}`);
+      user_properties.setProperty("POLL_DATA", serialized_poll_data);
+    }
   }
 }

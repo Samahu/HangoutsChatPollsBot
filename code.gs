@@ -1,5 +1,5 @@
-var DEFAULT_IMAGE_URL = 'https://goo.gl/bMqzYS';
-var BOT_NAME = "@Hangouts Chat Polls Bot";
+const DEFAULT_IMAGE_URL = 'https://goo.gl/bMqzYS';
+const BOT_NAME = "@Hangouts Chat Polls Bot";
 
 /**
  * Responds to a MESSAGE event in Hangouts Chat.
@@ -10,18 +10,19 @@ function onMessage(event) {
   
   log.info(JSON.stringify(event));
   
-  var message = event.message.text;
+  let message = event.message.text;
   if (0 == message.indexOf(BOT_NAME))
     message = message.substring(BOT_NAME.length);
+  message = message.trim();
   
-  var poller = event.user.displayName;
+  let poller = event.user.displayName;
   
-  var poll_details = new PollDetails();
+  let poll_details = new PollDetails();
   poll_details.load();
-  var message = (new Dialog(poll_details)).process(poller, message);
+  let response_message = (new Dialog(poll_details)).process(poller, message);
   poll_details.save();
   
-  return message;
+  return response_message;
 }
 
 /**
@@ -34,11 +35,11 @@ function onCardClick(event) {
   
   log.info(JSON.stringify(event));
   
-  var message = '';
+  let message = '';
   
   if (event.action.actionMethodName == "update-vote") {
-    var poll = JSON.parse(event.action.parameters[0].value);
-    var index = parseInt(event.action.parameters[1].value);
+    let poll = JSON.parse(event.action.parameters[0].value);
+    let index = parseInt(event.action.parameters[1].value);
     message = (new PollComposer()).update(event.user.displayName, poll, index);
   } else {
     message = {text: "Unexpected!!" };
@@ -55,7 +56,8 @@ function onCardClick(event) {
  * @param {Object} event the event object from Hangouts Chat
  */
 function onAddToSpace(event) {
-  var message = "";
+
+  let message = "";
 
   if (event.space.type == "DM") {
     message = "Thank you for adding me to a DM, " + event.user.displayName + "!";
@@ -64,7 +66,7 @@ function onAddToSpace(event) {
   }
   
   message += "\nType 'help' to list usage information for you";
-  
+
   return { "text": message };
 }
 
