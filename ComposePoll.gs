@@ -1,12 +1,25 @@
+const CHOICE_CUTOFF_LENGTH = 32;
+
 var PollComposer = function() {
   
-  this.compose_vote_button = function(poll, index, expired) {
+  this.split_choice_description = function(choice_text) {
     
-    let choice = poll.choices[index];
+    let description_marker_index = choice_text.indexOf('->');
+
+    if (description_marker_index > -1)
+      return { value: choice_text.substring(0, description_marker_index), description: choice_text.substring(description_marker_index + 2) };
+              
+    if (choice_text.length > CHOICE_CUTOFF_LENGTH)  // TODO: Choose a better way to introduce a hard break if the choice was too long
+      return { value: choice_text.substring(0, CHOICE_CUTOFF_LENGTH), description: choice_text.substring(CHOICE_CUTOFF_LENGTH + 1) };
+              
+    return { value: choice_text, description: "" }
+  }
+  
+  this.compose_vote_button = function(choice_value, poll, index, expired) {    
     
     return {
         textButton: {
-          text: choice,
+          text: choice_value,
           disabled: expired,
           onClick: {
             action: {
@@ -24,8 +37,10 @@ var PollComposer = function() {
   this.compose_vote_section = function(poll, index, total_votes, expired) {
     
     let response = poll.responses[index];
-    
-    let widgets = [{ buttons: [this.compose_vote_button(poll, index, expired)]}];
+    let choice_text = poll.choices[index];
+    let { value, description } = this.split_choice_description(choice_text);
+    let widgets = [{ buttons: [this.compose_vote_button(value, poll, index, expired)] }];
+    widgets.push({ textParagraph: { text: `<i><font color='#3b78e7'>${description}</font></i>` }});
     
     let vote_percent = total_votes > 0 ? 100 * response.voters.length / total_votes : 0;
     

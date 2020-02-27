@@ -57,8 +57,10 @@ var Dialog = function (poll_details) {
     switch (response.toLowerCase()) {
         // Top level commands
       case "help":
+        return this.help_message();
+        
       case "usage":
-        return this.usage_message();  // poll details is unchanged.
+        return this.usage_message();
         
       case "version":
         return this.version_message();
@@ -79,15 +81,19 @@ var Dialog = function (poll_details) {
   };
   
   /* predefined messages */
-  this.usage_message = function() {
+  this.help_message = function() {
     return { text: `You may start a new poll by posting a question with choices as follows:
       _When do you want to meet? Friday 8:00 PM, Saturday 8:00 AM, Sunday 3:00 PM_.
       The bot would then ask you few questions about the nature of the poll.
       *Note:* A poll needs to have at least two options!` };
   }
   
+  this.usage_message = function() {
+    return { text: "*Poll Question? Option 1[ -> Option 1 Description], Option 2[ -> Option 2 Description] [, Option 3[ -> Option 3 Description], ...]*" };
+  }
+  
   this.version_message = function() {
-    return { text: "version 1.0.1" };
+    return { text: "version 1.1.0" };
   }
   
   this.response_is_ill_formed_or_unexpected_message = function() {

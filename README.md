@@ -6,9 +6,12 @@ Builds a custom poll within hangouts chat
  - Allow votes to be identified or choose the poll to be anonymous.
  - Optionally set an expiration time for the poll.
 
+## Minor features:
+ - Users can add an optional short description per poll choice.
+ - If a poll choice summary exceeds 32 chars and and no description part is specified then choice summary text is split into parts where the later part is moved into choice description.  
+
 # Roadmap
 Features to come:
- - Allow users to add an optional short description per poll choice.
  - Add an option to show poll results only after the poll has concluded.
  - Add an option to expire a poll manually by the poll owner (rather than time-based).
  - Add the ability for sub responses .. (for example: show YES, NO, Maybe under a given possible response).
